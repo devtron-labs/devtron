@@ -21,6 +21,7 @@ import (
 
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/constants"
+	"go.uber.org/zap/zapcore"
 )
 
 type GitOpsConfigDto struct {
@@ -50,6 +51,24 @@ type GitOpsConfigDto struct {
 	UserEmailId    string `json:"-"`
 	Description    string `json:"-"`
 	UserId         int32  `json:"-"`
+}
+
+// MarshalLogObject decides what zap writes when the DTO is logged as a field,
+// e.g. logger.Infow("...", "payload", dto). Without it zap writes every JSON
+// field, including credentials such as the token and TLS data.
+//
+// Only safe fields are listed, so a field added later stays out of logs by default.
+// Host is left out because a URL can contain credentials (https://user:token@host).
+// The value receiver covers both dto and &dto. A nil *GitOpsConfigDto panics in zap,
+// so never log a pointer that can be nil. API JSON is not affected.
+func (dto GitOpsConfigDto) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	enc.AddInt("id", dto.Id)
+	enc.AddString("provider", dto.Provider)
+	enc.AddBool("active", dto.Active)
+	enc.AddString("authMode", string(dto.AuthMode))
+	enc.AddBool("allowCustomRepository", dto.AllowCustomRepository)
+	enc.AddBool("enableTLSVerification", dto.EnableTLSVerification)
+	return nil
 }
 
 type AuthMode string

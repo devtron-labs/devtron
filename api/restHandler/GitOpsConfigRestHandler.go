@@ -131,7 +131,7 @@ func (impl GitOpsConfigRestHandlerImpl) UpdateGitOpsConfig(w http.ResponseWriter
 	if bean.Token == "" {
 		res, err := impl.gitOpsConfigService.GetGitOpsConfigByProvider(bean.Provider)
 		if err != nil {
-			impl.logger.Errorw("service err, GetGitOpsConfigByProvider", "err", err, "provider", bean.Provider, "response", res)
+			impl.logger.Errorw("service err, GetGitOpsConfigByProvider", "err", err, "provider", bean.Provider)
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return
 		}
@@ -289,7 +289,7 @@ func (impl GitOpsConfigRestHandlerImpl) GitOpsValidator(w http.ResponseWriter, r
 	if bean.Token == "" {
 		res, err := impl.gitOpsConfigService.GetGitOpsConfigByProvider(bean.Provider)
 		if err != nil {
-			impl.logger.Errorw("service err, GetGitOpsConfigByProvider", "err", err, "provider", bean.Provider, "response", res)
+			impl.logger.Errorw("service err, GetGitOpsConfigByProvider", "err", err, "provider", bean.Provider)
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return
 		}
